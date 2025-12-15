@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultra Low Cost NFT Minter - Base Chain</title>
+    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+            opacity: 0.8;
+        }
+        
+        .price-info {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .price {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #4ecdc4;
+            margin-bottom: 5px;
+        }
+        
+        .gas-savings {
+            font-size: 0.9rem;
+            opacity: 0.7;
+            color: #ff6b6b;
+        }
+        
+        .mint-section {
+            margin: 30px 0;
+        }
+        
+        .quantity-selector {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .quantity-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+        
+        .quantity-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .quantity-btn.active {
+            background: #4ecdc4;
+            border-color: #4ecdc4;
+        }
+        
+        .mint-btn {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 20px;
+        }
+        
+        .mint-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+        
+        .mint-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .connected {
+            color: #4ecdc4;
+        }
+        
+        .disconnected {
+            color: #ff6b6b;
+        }
+        
+        .network-info {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-top: 10px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #4ecdc4;
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔥 NFT Minter</h1>
+        <p class="subtitle">Ultra Low Cost Minting on Base Chain</p>
+        <div class="price-info">
+            <div class="price">0.00001 ETH</div>
+            <div class="gas-savings">💡 95% gas savings vs Ethereum</div>
+        </div>
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-value" id="totalSupply">0</div>
+                <div class="stat-label">Minted</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="maxSupply">10,000</div>
+                <div class="stat-label">Max Supply</div>
+            </div>
+        </div>
+        <form id="nft-upload-form" enctype="multipart/form-data" class="mb-3">
+            <div class="mb-3">
+                <label for="nftImage" class="form-label">Upload Image</label>
+                <input class="form-control" type="file" id="nftImage" accept="image/*" required />
+            </div>
+            <div class="mb-3">
+                <label for="nftName" class="form-label">NFT Name</label>
+                <input class="form-control" type="text" id="nftName" placeholder="e.g. My NFT" required />
+            </div>
+            <div class="mb-3">
+                <label for="nftDesc" class="form-label">Description</label>
+                <textarea class="form-control" id="nftDesc" rows="2" placeholder="Describe your NFT" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Upload & Mint NFT</button>
+        </form>
+        <div id="uploadStatus" class="mt-3"></div>
+        <div class="mint-section">
+            <div class="quantity-selector">
+                <button class="quantity-btn active" data-qty="1">1</button>
+                <button class="quantity-btn" data-qty="5">5</button>
+                <button class="quantity-btn" data-qty="10">10</button>
+            </div>
+            <button id="mintBtn" class="mint-btn" disabled>
+                Connect Wallet to Mint
+            </button>
+        </div>
+        <div class="status" id="status">
+            <div class="disconnected" id="connectionStatus">❌ Not Connected</div>
+            <div class="network-info" id="networkInfo">Please connect to Base network</div>
+        </div>
+    </div>
+    <script>
+    document.getElementById('nft-upload-form').onsubmit = async function(e) {
+        e.preventDefault();
+        const status = document.getElementById('uploadStatus');
+        status.innerHTML = 'Uploading...';
+        const image = document.getElementById('nftImage').files[0];
+        const name = document.getElementById('nftName').value;
+        const desc = document.getElementById('nftDesc').value;
+        const formData = new FormData();
+        formData.append('image', image);
+        formData.append('name', name);
+        formData.append('description', desc);
+        // Replace with your backend endpoint
+        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+        if (res.ok) {
+            const data = await res.json();
+            status.innerHTML = `<span style='color:limegreen'>Uploaded! Metadata URI: <a href='${data.metadataUri}' target='_blank'>${data.metadataUri}</a></span>`;
+        } else {
+            status.innerHTML = `<span style='color:red'>Upload failed.</span>`;
+        }
+    };
+    </script>
+
+    <script>
+        // Contract configuration - Update with your deployed contract address
+        const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000"; // Replace with actual address
+        const CONTRACT_ABI = [
+            "function mint() external payable",
+            "function mintBatch(uint256 quantity) external payable",
+            "function totalSupply() public view returns (uint256)",
+            "function maxSupply() public view returns (uint256)",
+            "function mintPrice() public view returns (uint256)",
+            "function saleActive() public view returns (bool)",
+            "function owner() public view returns (address)",
+            "event Minted(address indexed to, uint256 indexed tokenId, string tokenURI)"
+        ];
+
+        let provider, signer, contract;
+        let selectedQuantity = 1;
+        
+        // Base chain configuration
+        const BASE_NETWORK = {
+            chainId: '0x2105', // 8453 in hex
+            chainName: 'Base',
+            nativeCurrency: {
+                name: 'ETH',
+                symbol: 'ETH',
+                decimals: 18
+            },
+            rpcUrls: ['https://mainnet.base.org'],
+            blockExplorerUrls: ['https://basescan.org']
+        };
+
+        // Initialize the app
+        async function init() {
+            if (typeof window.ethereum === 'undefined') {
+                showStatus('Please install MetaMask to use this app', 'error');
+                return;
+            }
+
+            try {
+                await connectWallet();
+                setupEventListeners();
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showStatus('Failed to initialize app', 'error');
+            }
+        }
+
+        // Connect wallet function
+        async function connectWallet() {
+            try {
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                await provider.send("eth_requestAccounts", []);
+                signer = provider.getSigner();
+                const address = await signer.getAddress();
+                
+                // Check if connected to Base network
+                const network = await provider.getNetwork();
+                if (network.chainId !== 8453) {
+                    await switchToBaseNetwork();
+                }
+                
+                contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+                
+                updateConnectionStatus(true, address);
+                await updateStats();
+                
+                // Setup contract event listeners
+                contract.on("Minted", (to, tokenId, tokenURI) => {
+                    showStatus(`🎉 Successfully minted NFT #${tokenId}!`, 'success');
+                    updateStats();
+                });
+                
+            } catch (error) {
+                console.error('Connection error:', error);
+                showStatus('Failed to connect wallet', 'error');
+            }
+        }
+
+        // Switch to Base network
+        async function switchToBaseNetwork() {
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: BASE_NETWORK.chainId }],
+                });
+            } catch (switchError) {
+                // If chain doesn't exist, add it
+                if (switchError.code === 4902) {
+                    await window.ethereum.request({
+                        method: 'wallet_addEthereumChain',
+                        params: [BASE_NETWORK],
+                    });
+                } else {
+                    throw switchError;
+                }
+            }
+        }
+
+        // Update connection status
+        function updateConnectionStatus(connected, address) {
+            const statusEl = document.getElementById('connectionStatus');
+            const mintBtn = document.getElementById('mintBtn');
+            
+            if (connected) {
+                statusEl.innerHTML = `✅ Connected: ${address.slice(0, 6)}...${address.slice(-4)}`;
+                statusEl.className = 'connected';
+                mintBtn.textContent = `Mint ${selectedQuantity} NFT${selectedQuantity > 1 ? 's' : ''}`;
+                mintBtn.disabled = false;
+            } else {
+                statusEl.innerHTML = '❌ Not Connected';
+                statusEl.className = 'disconnected';
+                mintBtn.textContent = 'Connect Wallet to Mint';
+                mintBtn.disabled = true;
+            }
+        }
+
+        // Update stats
+        async function updateStats() {
+            try {
+                const [total, max] = await Promise.all([
+                    contract.totalSupply(),
+                    contract.maxSupply()
+                ]);
+                
+                document.getElementById('totalSupply').textContent = total.toString();
+                document.getElementById('maxSupply').textContent = max.toString();
+            } catch (error) {
+                console.error('Error updating stats:', error);
+            }
+        }
+
+        // Mint function
+        async function mint() {
+            try {
+                showStatus('🔄 Minting in progress...', 'info');
+                
+                const value = ethers.utils.parseEther("0.00001").mul(selectedQuantity);
+                
+                let tx;
+                if (selectedQuantity === 1) {
+                    tx = await contract.mint({ value });
+                } else {
+                    tx = await contract.mintBatch(selectedQuantity, { value });
+                }
+                
+                showStatus(`📤 Transaction sent: ${tx.hash.slice(0, 10)}...`, 'info');
+                
+                await tx.wait();
+                showStatus(`✅ Successfully minted ${selectedQuantity} NFT${selectedQuantity > 1 ? 's' : ''}!`, 'success');
+                
+            } catch (error) {
+                console.error('Minting error:', error);
+                showStatus(`❌ Mint failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Show status message
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.innerHTML = `
+                <div class="${type === 'error' ? 'disconnected' : 'connected'}">${message}</div>
+                ${type === 'info' ? '<div class="network-info">Please wait for confirmation</div>' : ''}
+            `;
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Quantity selector
+            document.querySelectorAll('.quantity-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.quantity-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    selectedQuantity = parseInt(e.target.dataset.qty);
+                    
+                    const mintBtn = document.getElementById('mintBtn');
+                    if (!mintBtn.disabled) {
+                        mintBtn.textContent = `Mint ${selectedQuantity} NFT${selectedQuantity > 1 ? 's' : ''}`;
+                    }
+                });
+            });
+
+            // Mint button
+            document.getElementById('mintBtn').addEventListener('click', mint);
+
+            // Wallet events
+            if (window.ethereum) {
+                window.ethereum.on('accountsChanged', (accounts) => {
+                    if (accounts.length === 0) {
+                        updateConnectionStatus(false);
+                    } else {
+                        connectWallet();
+                    }
+                });
+
+                window.ethereum.on('chainChanged', () => {
+                    window.location.reload();
+                });
+            }
+        }
+
+        // Initialize the app when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
